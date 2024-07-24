@@ -1,0 +1,109 @@
+CREATE SEQUENCE IF NOT EXISTS customer_id_seq START 1;
+
+CREATE OR REPLACE PROCEDURE insert_bulk_data()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    i INTEGER;
+    v_customer_id INTEGER;
+    v_account_number BIGINT;
+    v_biller_id INTEGER;
+    v_bill_number BIGINT;
+BEGIN
+    -- Insert data into customer table
+    FOR i IN 1..10000 LOOP
+        INSERT INTO customer (
+            customer_id, aadhar, address, bill_pay_registered, city, country, dob, email,
+            first_name, gender, last_name, mobile_number, occupation, pan, password,
+            perferred_acc1, perferred_acc2, pin, salary, state, user_name
+        ) VALUES (
+            nextval('customer_id_seq'),
+            LPAD(FLOOR(RANDOM() * 1000000000000)::TEXT, 12, '0'),
+            'Address ' || i,
+            CASE WHEN RANDOM() < 0.5 THEN TRUE ELSE FALSE END,
+            (ARRAY['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata'])[FLOOR(RANDOM() * 5 + 1)],
+            'India',
+            (CURRENT_DATE - (FLOOR(RANDOM() * 365 * 50 + 365 * 18)::INTEGER || ' days')::INTERVAL)::DATE,
+            'user' || i || '@email.com',
+            'FirstName' || i,
+            CASE WHEN RANDOM() < 0.5 THEN 'Male' ELSE 'Female' END,
+            'LastName' || i,
+            LPAD(FLOOR(RANDOM() * 10000000000)::TEXT, 10, '0'),
+            (ARRAY['Engineer', 'Teacher', 'Doctor', 'Lawyer', 'Accountant'])[FLOOR(RANDOM() * 5 + 1)],
+            UPPER(SUBSTRING(MD5(RANDOM()::TEXT) FROM 1 FOR 10)),
+            MD5(RANDOM()::TEXT),
+            NULL,
+            NULL,
+            FLOOR(RANDOM() * 1000000),
+            FLOOR(RANDOM() * 500000 + 30000),
+            (ARRAY['Maharashtra', 'Delhi', 'Karnataka', 'Tamil Nadu', 'West Bengal'])[FLOOR(RANDOM() * 5 + 1)],
+            'user' || i
+        );
+    END LOOP;
+
+    -- Insert data into account table
+    FOR i IN 1..10000 LOOP
+        v_customer_id := (SELECT customer_id FROM customer ORDER BY RANDOM() LIMIT 1);
+        v_account_number := FLOOR(RANDOM() * 9000000000000000) + 1000000000000000;
+        
+        INSERT INTO account (
+            account_number, account_type, balance, branch_ifsc, close_date, open_date, status, customer_id, bill_pay_prefered
+        ) VALUES (
+            v_account_number,
+            CASE WHEN RANDOM() < 0.7 THEN 'Savings' ELSE 'Current' END,
+            FLOOR(RANDOM() * 1000000 + 1000),
+            'IFSC' || LPAD(FLOOR(RANDOM() * 1000000)::TEXT, 6, '0'),
+            NULL,
+            CURRENT_DATE - (FLOOR(RANDOM() * 365 * 5)::INTEGER || ' days')::INTERVAL,
+            'Active',
+            v_customer_id,
+            CASE WHEN RANDOM() < 0.5 THEN TRUE ELSE FALSE END
+        );
+    END LOOP;
+
+    -- Insert data into biller table
+    FOR i IN 1..10000 LOOP
+        v_biller_id := i;
+        v_customer_id := (SELECT customer_id FROM customer ORDER BY RANDOM() LIMIT 1);
+        
+        INSERT INTO biller (
+            biller_id, biller_address, biller_categorey, biller_name, city, create_biller_date,
+            pincode, status, update_biller_date, customer_id
+        ) VALUES (
+            v_biller_id,
+            'Biller Address ' || i,
+            (ARRAY['Electricity', 'Water', 'Internet', 'Gas', 'Phone'])[FLOOR(RANDOM() * 5 + 1)],
+            'Biller ' || i,
+            (ARRAY['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata'])[FLOOR(RANDOM() * 5 + 1)],
+            CURRENT_DATE - (FLOOR(RANDOM() * 365)::INTEGER || ' days')::INTERVAL,
+            FLOOR(RANDOM() * 1000000),
+            'Active',
+            CURRENT_DATE,
+            v_customer_id
+        );
+    END LOOP;
+
+    -- Insert data into payment_instruction table
+    FOR i IN 1..10000 LOOP
+        v_bill_number := 100000 + i;
+        v_account_number := (SELECT account_number FROM account ORDER BY RANDOM() LIMIT 1);
+        v_biller_id := (SELECT biller_id FROM biller ORDER BY RANDOM() LIMIT 1);
+        
+        INSERT INTO payment_instruction (
+            bill_number, bill_amount, payment_date, payment_due_date, payment_status, account_number, biller_id
+        ) VALUES (
+            v_bill_number,
+            FLOOR(RANDOM() * 10000 + 100),
+            CURRENT_DATE + (FLOOR(RANDOM() * 30)::INTEGER || ' days')::INTERVAL,
+            CURRENT_DATE + (FLOOR(RANDOM() * 60 + 30)::INTEGER || ' days')::INTERVAL,
+            (ARRAY['Pending', 'Completed', 'Failed'])[FLOOR(RANDOM() * 3 + 1)],
+            v_account_number,
+            v_biller_id
+        );
+    END LOOP;
+END;
+$$
+;
+
+-- Execute the procedure
+CALL insert_bulk_data();
