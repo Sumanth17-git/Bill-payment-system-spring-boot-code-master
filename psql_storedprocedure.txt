@@ -1,6 +1,12 @@
-CREATE SEQUENCE IF NOT EXISTS customer_id_seq START 1;
+DO $$
+BEGIN
+    -- Check if the sequence exists
+    IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'customer_id_seq') THEN
+        CREATE SEQUENCE customer_id_seq START 10001;
+    END IF;
+END $$;
 
-CREATE OR REPLACE PROCEDURE insert_bulk_data()
+CREATE OR REPLACE PROCEDURE insert_next_bulk_data()
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -9,9 +15,11 @@ DECLARE
     v_account_number BIGINT;
     v_biller_id INTEGER;
     v_bill_number BIGINT;
+    start_value INTEGER := 1; -- Update to the next starting point
+    end_value INTEGER := 20000;   -- Adjust as needed
 BEGIN
     -- Insert data into customer table
-    FOR i IN 1..10000 LOOP
+    FOR i IN start_value..end_value LOOP
         INSERT INTO customer (
             customer_id, aadhar, address, bill_pay_registered, city, country, dob, email,
             first_name, gender, last_name, mobile_number, occupation, pan, password,
@@ -42,7 +50,7 @@ BEGIN
     END LOOP;
 
     -- Insert data into account table
-    FOR i IN 1..10000 LOOP
+    FOR i IN start_value..end_value LOOP
         v_customer_id := (SELECT customer_id FROM customer ORDER BY RANDOM() LIMIT 1);
         v_account_number := FLOOR(RANDOM() * 9000000000000000) + 1000000000000000;
         
@@ -62,7 +70,7 @@ BEGIN
     END LOOP;
 
     -- Insert data into biller table
-    FOR i IN 1..10000 LOOP
+    FOR i IN start_value..end_value LOOP
         v_biller_id := i;
         v_customer_id := (SELECT customer_id FROM customer ORDER BY RANDOM() LIMIT 1);
         
@@ -84,7 +92,7 @@ BEGIN
     END LOOP;
 
     -- Insert data into payment_instruction table
-    FOR i IN 1..10000 LOOP
+    FOR i IN start_value..end_value LOOP
         v_bill_number := 100000 + i;
         v_account_number := (SELECT account_number FROM account ORDER BY RANDOM() LIMIT 1);
         v_biller_id := (SELECT biller_id FROM biller ORDER BY RANDOM() LIMIT 1);
@@ -102,8 +110,7 @@ BEGIN
         );
     END LOOP;
 END;
-$$
-;
+$$;
 
 -- Execute the procedure
-CALL insert_bulk_data();
+CALL insert_next_bulk_data();
